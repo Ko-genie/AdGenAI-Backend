@@ -1,3 +1,41 @@
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+const cheerio = require('cheerio');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000'
+}));
+
+async function scrapeProductData(url) {
+  try {
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
+    
+    const title = $('title').text() || 'No title available';
+    let description = $('meta[name="description"]').attr('content') || '';
+    
+    if (!description || description.length < 10) {
+      description = $('p').first().text() || $('h1').text() || $('h2').text() || 'No relevant content found';
+    }
+    
+    const brandName = $('meta[property="og:site_name"]').attr('content') || url.split('//')[1].split('/')[0] || 'Unknown Brand';
+    const productName = $('h1').first().text() || title || 'Unknown Product';
+    
+    return { 
+      brandName, 
+      productName, 
+      productDescription: description || 'No description available'
+    };
+  } catch (error) {
+    console.error('Error scraping product data:', error.message);
+    throw new Error('Failed to scrape the product data');
+  }
+}
+
 app.post('/createAd', async (req, res) => {
   const { url, gender, ageGroup } = req.body; // Get gender and age group from the request
 
